@@ -1,11 +1,11 @@
 ms-python.python
 ms-python.black-formatter
-ms-python.pylint
+ms-python.vscode-pylance
+ms-python.debugpy
 esbenp.prettier-vscode
 dbaeumer.vscode-eslint
 zhuangtongfa.material-theme
 pkief.material-icon-theme
-tonsky.theme-alabaster
 bradlc.vscode-tailwindcss
 ms-vscode.vscode-typescript-next
 redhat.vscode-yaml
@@ -15,5 +15,6 @@ github.copilot
 github.copilot-chat
 ms-vscode-remote.remote-wsl
 formulahendry.auto-rename-tag
+formulahendry.code-runner
 christian-kohler.path-intellisense
 ms-vscode.vscode-json

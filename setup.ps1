@@ -20,6 +20,11 @@ param(
     [Alias("c")]
     [switch]$Clean,
     
+    # Verificar configuracao de PATH e variaveis de ambiente.
+    [Parameter(Mandatory=$false)]
+    [Alias("v")]
+    [string]$Verify,
+    
     # Mostrar ajuda.
     [Parameter(Mandatory=$false)]
     [Alias("h")]
@@ -48,73 +53,91 @@ function Write-Log {
     Write-Host "[$Timestamp] [$Level] $Message" -ForegroundColor $Colors[$Level]
 }
 
-function Test-Prerequisites {
-    Write-Log "[VERIFICACAO] Verificando pre-requisitos do sistema..." -Level "Info"
-    $Issues = @()
-    
-    # Verificar Git (PRE-REQUISITO OBRIGATORIO).
+function Test-GitInstallation {
+    Write-Log "[VERIFICACAO] Verificando instalacao do Git..." -Level "Info"
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-        $Issues += "Git nao encontrado! Instale: https://git-scm.com/download/win."
+        Write-Log "[ERRO] Git nao encontrado! Instale: https://git-scm.com/download/win" -Level "Error"
+        return $false
     } else {
-        Write-Log "[SUCESSO] Git encontrado: $(git --version)." -Level "Success"
+        Write-Log "[SUCESSO] Git encontrado: $(git --version)" -Level "Success"
+        return $true
     }
-    
-    # Verificar espaco em disco (minimo 3GB).
+}
+
+function Test-DiskSpace {
+    Write-Log "[VERIFICACAO] Verificando espaco em disco..." -Level "Info"
     try {
         $FreeSpace = (Get-WmiObject Win32_LogicalDisk -Filter "DriveType=3" | Where-Object DeviceID -eq "C:").FreeSpace
+        $FreeSpaceGB = [math]::Round($FreeSpace / 1GB, 2)
+        
         if ($FreeSpace -lt 3GB) {
-            $Issues += "Espaco insuficiente no drive C: (menos de 3GB livres)."
+            Write-Log "[ERRO] Espaco insuficiente no drive C: $FreeSpaceGB GB (minimo 3GB necessarios)" -Level "Error"
+            return $false
+        } else {
+            Write-Log "[SUCESSO] Espaco em disco: $FreeSpaceGB GB livres (minimo 3GB)" -Level "Success"
+            return $true
         }
     } catch {
-        Write-Log "[AVISO] Nao foi possivel verificar espaco em disco." -Level "Warning"
+        Write-Log "[AVISO] Nao foi possivel verificar espaco em disco" -Level "Warning"
+        return $true  # Continuar mesmo com aviso
     }
-    
-    # Verificar conexao com internet.
-    try {
-        $TestConnection = Test-NetConnection -ComputerName "chocolatey.org" -Port 443 -InformationLevel Quiet -WarningAction SilentlyContinue
-        if (-not $TestConnection) {
-            $Issues += "Sem conexao com a internet (chocolatey.org inacessivel)."
-        }
-    }
-    catch {
-        $Issues += "Erro ao verificar conexao: $($_.Exception.Message)."
-    }
-    
-    # Verificar se o arquivo JSON existe.
+}
+
+function Test-JsonFile {
+    Write-Log "[VERIFICACAO] Verificando e carregando arquivo software.json..." -Level "Info"
     $ConfigFile = Join-Path $PSScriptRoot "config\software.json"
+    
     if (-not (Test-Path $ConfigFile)) {
-        $Issues += "Arquivo 'software.json' nao encontrado em: $ConfigFile."
+        Write-Log "[ERRO] Arquivo 'software.json' nao encontrado em: $ConfigFile" -Level "Error"
+        return $null
     }
-    
-    # Retornar resultado.
-    if ($Issues.Count -gt 0) {
-        Write-Log "[ERRO] Problemas encontrados:" -Level "Error"
-        foreach ($Issue in $Issues) {
-            Write-Log "   - $Issue" -Level "Error"
-        }
-        return $false
-    }
-    
-    Write-Log "[SUCESSO] Todos os pre-requisitos atendidos!" -Level "Success"
-    return $true
-}
-
-function Test-IsAdmin {
-    $CurrentUser = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
-    return $CurrentUser.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-}
-
-function Get-SoftwareConfig {
-    $ConfigFile = Join-Path $PSScriptRoot "config\software.json"
     
     try {
         $Config = Get-Content $ConfigFile -Raw | ConvertFrom-Json
-        $SoftwareCount = $Config.software.PSObject.Properties.Count
-        Write-Log "[SUCESSO] Configuracao carregada: $SoftwareCount softwares disponiveis." -Level "Success"
+        $SoftwareCount = ($Config.software.PSObject.Properties | Measure-Object).Count
+        Write-Log "[SUCESSO] Configuracao carregada: $($SoftwareCount) softwares disponiveis." -Level "Success"
         return $Config
     }
     catch {
         Write-Log "[ERRO] Erro ao ler arquivo JSON: $($_.Exception.Message)." -Level "Error"
+        return $null
+    }
+}
+
+function Test-InternetConnection {
+    Write-Log "[VERIFICACAO] Verificando conexao com internet..." -Level "Info"
+    try {
+        $TestConnection = Test-NetConnection -ComputerName "chocolatey.org" -Port 443 -InformationLevel Quiet -WarningAction SilentlyContinue
+        if (-not $TestConnection) {
+            Write-Log "[ERRO] Sem conexao com internet (chocolatey.org inacessivel)" -Level "Error"
+            return $false
+        } else {
+            Write-Log "[SUCESSO] Conexao com internet confirmada" -Level "Success"
+            return $true
+        }
+    }
+    catch {
+        Write-Log "[ERRO] Erro ao verificar conexao: $($_.Exception.Message)" -Level "Error"
+        return $false
+    }
+}
+
+function Get-WorkingDirectory {
+    Write-Log "[VERIFICACAO] Verificando privilegios de administrador..." -Level "Info"
+    $CurrentUser = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+    $IsAdmin = $CurrentUser.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    
+    if ($IsAdmin) {
+        Write-Log "[SUCESSO] Modo ADMINISTRADOR detectado (Chocolatey)" -Level "Success"
+    } else {
+        Write-Log "[INFO] Modo USUARIO detectado (Instalacao Portatil)" -Level "Info"
+    }
+    
+    Write-Host ""  # Quebra de linha após verificação geral
+    
+    if (-not $IsAdmin) {
+        return "$env:USERPROFILE\Documents\TEMP_ENV"
+    } else {
         return $null
     }
 }
@@ -126,8 +149,15 @@ function Get-SoftwareList {
     )
     
     if ($UserInput -eq "all") {
-        # Retornar todos os softwares do JSON.
-        $AllSoftware = @($Config.software.PSObject.Properties.Name)
+        # Retornar todos os softwares do JSON com suas configurações.
+        $AllSoftware = @()
+        foreach ($SoftwareName in $Config.software.PSObject.Properties.Name) {
+            $SoftwareConfig = $Config.software.$SoftwareName
+            $AllSoftware += [PSCustomObject]@{
+                Name = $SoftwareName
+                Config = $SoftwareConfig
+            }
+        }
         Write-Log "[INSTALACAO] Perfil 'all' selecionado: $($AllSoftware.Count) softwares." -Level "Info"
         return $AllSoftware
     }
@@ -143,7 +173,11 @@ function Get-SoftwareList {
             $CleanName = $SoftwareName.Trim()
             if (-not [string]::IsNullOrEmpty($CleanName)) {
                 if ($Config.software.PSObject.Properties.Name -contains $CleanName) {
-                    $ValidSoftware += $CleanName
+                    $SoftwareConfig = $Config.software.$CleanName
+                    $ValidSoftware += [PSCustomObject]@{
+                        Name = $CleanName
+                        Config = $SoftwareConfig
+                    }
                 }
                 else {
                     $InvalidSoftware += $CleanName
@@ -157,7 +191,8 @@ function Get-SoftwareList {
         }
         
         if ($ValidSoftware.Count -gt 0) {
-            Write-Log "[INSTALACAO] Softwares selecionados: $($ValidSoftware -join ', ')." -Level "Info"
+            $SoftwareNames = $ValidSoftware | ForEach-Object { $_.Name }
+            Write-Log "[INSTALACAO] Softwares selecionados: $($SoftwareNames -join ', ')." -Level "Info"
         }
         
         return $ValidSoftware
@@ -166,29 +201,15 @@ function Get-SoftwareList {
 
 function Install-ViaChocolatey {
     param(
-        [PSCustomObject]$SoftwareConfig,
         [string]$SoftwareName,
+        [PSCustomObject]$SoftwareConfig,
         [bool]$Force = $false
     )
     
     $PackageName = $SoftwareConfig.chocolatey.packageName
     
-    # Verificar se o software ja esta instalado (se nao for forcado).
-    if (-not $Force) {
-        Write-Log "[VERIFICACAO] Verificando se $($SoftwareConfig.name) ja esta instalado..." -Level "Info"
-        
-        try {
-            $InstalledPackages = choco list --local-only $PackageName --exact 2>$null
-            if ($InstalledPackages -match $PackageName) {
-                Write-Log "[JA_INSTALADO] $($SoftwareConfig.name) ja esta instalado. Pulando instalacao." -Level "Warning"
-                return $true
-            }
-        }
-        catch {
-            Write-Log "[AVISO] Nao foi possivel verificar pacotes instalados. Prosseguindo com instalacao." -Level "Warning"
-        }
-    }
-    else {
+    # Informar sobre modo forcado se aplicavel
+    if ($Force) {
         Write-Log "[FORCE] Modo forcado ativado. Reinstalando $($SoftwareConfig.name)..." -Level "Info"
     }
     
@@ -198,6 +219,13 @@ function Install-ViaChocolatey {
         $Result = choco install $PackageName -y --no-progress --force
         if ($LASTEXITCODE -eq 0) {
             Write-Log "[SUCESSO] $($SoftwareConfig.name) instalado com sucesso!" -Level "Success"
+            
+            # Configurar variaveis de ambiente apos instalacao bem-sucedida
+            $null = Set-PathConfiguration -SoftwareName $SoftwareName -SoftwareConfig $SoftwareConfig -IsAdmin $true
+            
+            # Verificar se as configuracoes foram aplicadas corretamente
+            $null = Compare-PathConfiguration -SoftwareName $SoftwareName -SoftwareConfig $SoftwareConfig -IsAdmin $true
+            
             return $true
         }
         else {
@@ -213,8 +241,8 @@ function Install-ViaChocolatey {
 
 function Install-Portable {
     param(
-        [PSCustomObject]$SoftwareConfig,
         [string]$SoftwareName,
+        [PSCustomObject]$SoftwareConfig,
         [string]$BasePath,
         [bool]$Force = $false
     )
@@ -230,28 +258,14 @@ function Install-Portable {
         return $false
     }
     
-    # Verificar se ja foi instalado como portatil (se nao for forcado).
+    # Configurar diretorios para instalacao portatil
     $ExtractFolder = $SoftwareConfig.portable.extractFolder
     $SoftwareFolder = Join-Path $BasePath $ExtractFolder
     
-    if (-not $Force) {
-        Write-Log "[VERIFICACAO] Verificando se $($SoftwareConfig.name) ja esta instalado..." -Level "Info"
-        
-        if (Test-Path $SoftwareFolder) {
-            # Verificar se o diretorio nao esta vazio.
-            $Contents = Get-ChildItem $SoftwareFolder -ErrorAction SilentlyContinue
-            if ($Contents.Count -gt 0) {
-                Write-Log "[JA_INSTALADO] $($SoftwareConfig.name) ja esta instalado em: $SoftwareFolder. Pulando instalacao." -Level "Warning"
-                return $true
-            }
-        }
-    }
-    else {
-        Write-Log "[FORCE] Modo forcado ativado. Reinstalando $($SoftwareConfig.name)..." -Level "Info"
-        # Remover instalacao anterior se existir.
-        if (Test-Path $SoftwareFolder) {
-            Remove-Item $SoftwareFolder -Recurse -Force -ErrorAction SilentlyContinue
-        }
+    # Se for modo forcado, remover instalacao anterior
+    if ($Force -and (Test-Path $SoftwareFolder)) {
+        Write-Log "[FORCE] Removendo instalacao anterior: $SoftwareFolder" -Level "Info"
+        Remove-Item $SoftwareFolder -Recurse -Force -ErrorAction SilentlyContinue
     }
     
     Write-Log "[PORTABLE] Instalando versao portatil: $($SoftwareConfig.name)." -Level "Info"
@@ -281,12 +295,300 @@ function Install-Portable {
         Remove-Item $DownloadFile -Force -ErrorAction SilentlyContinue
         
         Write-Log "[SUCESSO] $($SoftwareConfig.name) instalado em: $SoftwareFolder." -Level "Success"
+        
+        # Configurar variaveis de ambiente apos instalacao bem-sucedida
+        $null = Set-PathConfiguration -SoftwareName $SoftwareName -SoftwareConfig $SoftwareConfig -IsAdmin $false -InstallPath $BasePath
+        
+        # Verificar se as configuracoes foram aplicadas corretamente
+        $null = Compare-PathConfiguration -SoftwareName $SoftwareName -SoftwareConfig $SoftwareConfig -IsAdmin $false -InstallPath $BasePath
+        
         return $true
     }
     catch {
         Write-Log "[ERRO] Erro na instalacao portatil: $($_.Exception.Message)." -Level "Error"
         return $false
     }
+}
+
+function Test-SoftwareInstalled {
+    param(
+        [string]$SoftwareName,
+        [PSCustomObject]$SoftwareConfig,
+        [bool]$IsAdmin,
+        [string]$InstallPath = $null
+    )
+    
+    Write-Log "[VERIFICACAO] Verificando se $($SoftwareConfig.name) ja esta instalado..." -Level "Info"
+    
+    if ($IsAdmin) {
+        # Verificar via Chocolatey
+        try {
+            $PackageName = $SoftwareConfig.chocolatey.packageName
+            $InstalledPackages = choco list --local-only $PackageName --exact 2>$null
+            $IsInstalled = ($InstalledPackages -match $PackageName)
+            
+            if ($IsInstalled) {
+                Write-Log "[JA_INSTALADO] $($SoftwareConfig.name) ja esta instalado via Chocolatey" -Level "Warning"
+            } else {
+                Write-Log "[NAO_INSTALADO] $($SoftwareConfig.name) nao foi encontrado via Chocolatey" -Level "Info"
+            }
+            
+            return $IsInstalled
+        }
+        catch {
+            Write-Log "[ERRO] Erro ao verificar instalacao via Chocolatey: $($_.Exception.Message)" -Level "Error"
+            return $false
+        }
+    }
+    else {
+        # Verificar instalação portátil
+        if (-not $SoftwareConfig.portable) {
+            Write-Log "[AVISO] $($SoftwareConfig.name) requer privilegios de administrador" -Level "Warning"
+            return $false
+        }
+        
+        $ExtractFolder = $SoftwareConfig.portable.extractFolder
+        $SoftwareFolder = Join-Path $InstallPath $ExtractFolder
+        
+        if (Test-Path $SoftwareFolder) {
+            $Contents = Get-ChildItem $SoftwareFolder -ErrorAction SilentlyContinue
+            $IsInstalled = ($Contents.Count -gt 0)
+            
+            if ($IsInstalled) {
+                Write-Log "[JA_INSTALADO] $($SoftwareConfig.name) ja esta instalado em: $SoftwareFolder" -Level "Warning"
+            } else {
+                Write-Log "[NAO_INSTALADO] $($SoftwareConfig.name) pasta existe mas esta vazia: $SoftwareFolder" -Level "Info"
+            }
+            
+            return $IsInstalled
+        }
+        
+        Write-Log "[NAO_INSTALADO] $($SoftwareConfig.name) nao foi encontrado em: $SoftwareFolder" -Level "Info"
+        return $false
+    }
+}
+
+function Compare-PathConfiguration {
+    param(
+        [string]$SoftwareName,
+        [PSCustomObject]$SoftwareConfig,
+        [bool]$IsAdmin,
+        [string]$InstallPath = $null
+    )
+    
+    # Verificar se existe configuracao de PATH no JSON
+    if (-not $SoftwareConfig.path) {
+        Write-Log "[INFO] $($SoftwareConfig.name): Nenhuma configuracao de PATH definida no JSON" -Level "Info"
+        return $true
+    }
+    
+    # Selecionar configuracao baseada no modo
+    $PathConfig = if ($IsAdmin) { $SoftwareConfig.path.chocolatey } else { $SoftwareConfig.path.portable }
+    
+    if (-not $PathConfig) {
+        Write-Log "[AVISO] $($SoftwareConfig.name): Configuracao de PATH nao disponivel para este modo" -Level "Warning"
+        return $false
+    }
+    
+    # Verificar se é auto-configurado
+    if ($PathConfig.autoConfigured) {
+        Write-Log "[INFO] $($SoftwareConfig.name): PATH configurado automaticamente pelo instalador" -Level "Success"
+        return $true
+    }
+    
+    $AllValid = $true
+    
+    # Verificar variáveis de ambiente personalizadas
+    if ($PathConfig.environmentVariables) {
+        foreach ($EnvVar in $PathConfig.environmentVariables.PSObject.Properties) {
+            $VarName = $EnvVar.Name
+            $ExpectedValue = Expand-PathTokens -Path $EnvVar.Value -InstallPath $InstallPath
+            
+            # Resolver wildcards
+            if ($ExpectedValue -match '\*') {
+                $ResolvedPath = Get-ChildItem (Split-Path $ExpectedValue -Parent) -Directory -ErrorAction SilentlyContinue | 
+                               Where-Object { $_.Name -match ($ExpectedValue -replace '.*\\(.+)', '$1' -replace '\*', '.*') } | 
+                               Select-Object -First 1 -ExpandProperty FullName
+                if ($ResolvedPath) {
+                    $ExpectedValue = $ResolvedPath
+                }
+            }
+            
+            $CurrentValue = [Environment]::GetEnvironmentVariable($VarName, $PathConfig.scope)
+            
+            if ($CurrentValue -eq $ExpectedValue) {
+                Write-Log "[OK] $VarName esta configurado corretamente: $CurrentValue" -Level "Success"
+            }
+            elseif ([string]::IsNullOrEmpty($CurrentValue)) {
+                Write-Log "[ERRO] $VarName nao esta configurado. Esperado: $ExpectedValue" -Level "Error"
+                $AllValid = $false
+            }
+            else {
+                Write-Log "[DIFERENCA] $VarName configurado diferente:" -Level "Warning"
+                Write-Log "  Sistema: $CurrentValue" -Level "Warning"
+                Write-Log "  JSON:    $ExpectedValue" -Level "Warning"
+                $AllValid = $false
+            }
+        }
+    }
+    
+    # Verificar PATHs principais
+    if ($PathConfig.paths) {
+        $CurrentPath = [Environment]::GetEnvironmentVariable("PATH", $PathConfig.scope)
+        
+        foreach ($PathEntry in $PathConfig.paths) {
+            $ExpandedPath = Expand-PathTokens -Path $PathEntry -InstallPath $InstallPath
+            
+            # Resolver wildcards
+            if ($ExpandedPath -match '\*') {
+                $ResolvedPath = Get-ChildItem (Split-Path $ExpandedPath -Parent) -Directory -ErrorAction SilentlyContinue | 
+                               Where-Object { $_.Name -match ($ExpandedPath -replace '.*\\(.+)', '$1' -replace '\*', '.*') } | 
+                               Select-Object -First 1 -ExpandProperty FullName
+                if ($ResolvedPath) {
+                    $ExpandedPath = $ResolvedPath
+                }
+            }
+            
+            if ($CurrentPath -like "*$ExpandedPath*") {
+                Write-Log "[OK] PATH configurado: $ExpandedPath" -Level "Success"
+            }
+            else {
+                Write-Log "[ERRO] PATH nao encontrado no sistema: $ExpandedPath" -Level "Error"
+                $AllValid = $false
+            }
+        }
+    }
+    
+    # Verificar PATHs adicionais
+    if ($SoftwareConfig.path.additional) {
+        foreach ($AdditionalPath in $SoftwareConfig.path.additional) {
+            $ExpandedPath = Expand-PathTokens -Path $AdditionalPath.path -InstallPath $InstallPath
+            $CurrentPath = [Environment]::GetEnvironmentVariable("PATH", $AdditionalPath.scope)
+            
+            if ($CurrentPath -like "*$ExpandedPath*") {
+                Write-Log "[OK] PATH adicional ($($AdditionalPath.description)): $ExpandedPath" -Level "Success"
+            }
+            else {
+                Write-Log "[ERRO] PATH adicional nao encontrado: $ExpandedPath ($($AdditionalPath.description))" -Level "Error"
+                $AllValid = $false
+            }
+        }
+    }
+    
+    return $AllValid
+}
+
+function Set-PathConfiguration {
+    param(
+        [string]$SoftwareName,
+        [PSCustomObject]$SoftwareConfig,
+        [bool]$IsAdmin,
+        [string]$InstallPath = $null
+    )
+    
+    # Verificar se existe configuracao de PATH no JSON
+    if (-not $SoftwareConfig.path) {
+        return $true
+    }
+    
+    # Selecionar configuracao baseada no modo
+    $PathConfig = if ($IsAdmin) { $SoftwareConfig.path.chocolatey } else { $SoftwareConfig.path.portable }
+    
+    if (-not $PathConfig -or $PathConfig.autoConfigured) {
+        return $true
+    }
+    
+    Write-Log "[CONFIG] Configurando PATH para $($SoftwareConfig.name)..." -Level "Info"
+    
+    # Configurar variáveis de ambiente personalizadas
+    if ($PathConfig.environmentVariables) {
+        foreach ($EnvVar in $PathConfig.environmentVariables.PSObject.Properties) {
+            $VarName = $EnvVar.Name
+            $VarValue = Expand-PathTokens -Path $EnvVar.Value -InstallPath $InstallPath
+            
+            # Resolver wildcards
+            if ($VarValue -match '\*') {
+                $ResolvedPath = Get-ChildItem (Split-Path $VarValue -Parent) -Directory -ErrorAction SilentlyContinue | 
+                               Where-Object { $_.Name -match ($VarValue -replace '.*\\(.+)', '$1' -replace '\*', '.*') } | 
+                               Select-Object -First 1 -ExpandProperty FullName
+                if ($ResolvedPath) {
+                    $VarValue = $ResolvedPath
+                }
+            }
+            
+            if (Test-Path $VarValue) {
+                $CurrentValue = [Environment]::GetEnvironmentVariable($VarName, $PathConfig.scope)
+                if ($CurrentValue -ne $VarValue) {
+                    Write-Log "[CONFIG] Configurando $VarName = $VarValue" -Level "Info"
+                    [Environment]::SetEnvironmentVariable($VarName, $VarValue, $PathConfig.scope)
+                    Write-Log "[SUCESSO] $VarName configurado" -Level "Success"
+                }
+            }
+        }
+    }
+    
+    # Configurar PATHs
+    if ($PathConfig.paths) {
+        $CurrentPath = [Environment]::GetEnvironmentVariable("PATH", $PathConfig.scope)
+        $PathsToAdd = @()
+        
+        foreach ($PathEntry in $PathConfig.paths) {
+            $ExpandedPath = Expand-PathTokens -Path $PathEntry -InstallPath $InstallPath
+            
+            # Resolver wildcards
+            if ($ExpandedPath -match '\*') {
+                $ResolvedPath = Get-ChildItem (Split-Path $ExpandedPath -Parent) -Directory -ErrorAction SilentlyContinue | 
+                               Where-Object { $_.Name -match ($ExpandedPath -replace '.*\\(.+)', '$1' -replace '\*', '.*') } | 
+                               Select-Object -First 1 -ExpandProperty FullName
+                if ($ResolvedPath) {
+                    $ExpandedPath = $ResolvedPath
+                }
+            }
+            
+            if (Test-Path $ExpandedPath) {
+                if ($CurrentPath -notlike "*$ExpandedPath*") {
+                    $PathsToAdd += $ExpandedPath
+                }
+            }
+        }
+        
+        if ($PathsToAdd.Count -gt 0) {
+            Write-Log "[CONFIG] Adicionando ao PATH: $($PathsToAdd -join ';')" -Level "Info"
+            $NewPath = "$CurrentPath;$($PathsToAdd -join ';')"
+            [Environment]::SetEnvironmentVariable("PATH", $NewPath, $PathConfig.scope)
+            Write-Log "[SUCESSO] PATH atualizado" -Level "Success"
+        }
+    }
+    
+    # Configurar PATHs adicionais
+    if ($SoftwareConfig.path.additional) {
+        foreach ($AdditionalPath in $SoftwareConfig.path.additional) {
+            $ExpandedPath = Expand-PathTokens -Path $AdditionalPath.path -InstallPath $InstallPath
+            $CurrentPath = [Environment]::GetEnvironmentVariable("PATH", $AdditionalPath.scope)
+            
+            if ($CurrentPath -notlike "*$ExpandedPath*") {
+                Write-Log "[CONFIG] Adicionando PATH adicional ($($AdditionalPath.description)): $ExpandedPath" -Level "Info"
+                [Environment]::SetEnvironmentVariable("PATH", "$CurrentPath;$ExpandedPath", $AdditionalPath.scope)
+                Write-Log "[SUCESSO] PATH adicional configurado" -Level "Success"
+            }
+        }
+    }
+    
+    return $true
+}
+
+function Expand-PathTokens {
+    param(
+        [string]$Path,
+        [string]$InstallPath = $null
+    )
+    
+    $ExpandedPath = $Path
+    $ExpandedPath = $ExpandedPath -replace '\{InstallPath\}', $InstallPath
+    $ExpandedPath = $ExpandedPath -replace '\{AppData\}', $env:APPDATA
+    $ExpandedPath = $ExpandedPath -replace '\{ProgramFiles\}', ${env:ProgramFiles}
+    
+    return $ExpandedPath
 }
 
 function Clean-Environment {
@@ -314,7 +616,7 @@ function Clean-Environment {
         Write-Log "[ADMIN] Executando limpeza via Chocolatey..." -Level "Info"
         
         # Obter lista de softwares instalados.
-        $Config = Get-SoftwareConfig
+        $Config = Test-JsonFile
         if ($Config) {
             foreach ($SoftwareName in $Config.software.PSObject.Properties.Name) {
                 $PackageName = $Config.software.$SoftwareName.chocolatey.packageName
@@ -363,6 +665,7 @@ function Show-Help {
     Write-Host "  -Install  (-i)   Instalar softwares (especificos ou 'all')" -ForegroundColor Green
     Write-Host "  -Force    (-f)   Forcar reinstalacao mesmo se ja instalado" -ForegroundColor Green  
     Write-Host "  -Clean    (-c)   Limpeza completa do ambiente" -ForegroundColor Green
+    Write-Host "  -Verify   (-v)   Verificar PATH e variaveis (especificos ou 'all')" -ForegroundColor Green
     Write-Host "  -Help     (-h)   Mostrar esta ajuda" -ForegroundColor Green
     Write-Host ""
     Write-Host "EXEMPLOS:" -ForegroundColor Yellow
@@ -370,6 +673,8 @@ function Show-Help {
     Write-Host "  .\setup.ps1 -Install 'vscode,python'       # Instalar softwares especificos" -ForegroundColor Cyan
     Write-Host "  .\setup.ps1 -i vscode                      # Instalar apenas VS Code" -ForegroundColor Cyan
     Write-Host "  .\setup.ps1 -i nodejs -Force               # Forcar reinstalacao do Node.js" -ForegroundColor Cyan
+    Write-Host "  .\setup.ps1 -Verify all                    # Verificar PATH de todos os softwares" -ForegroundColor Cyan
+    Write-Host "  .\setup.ps1 -v python                      # Verificar apenas configuracao Python" -ForegroundColor Cyan
     Write-Host "  .\setup.ps1 -Clean                         # Limpeza completa do ambiente" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "SOFTWARES DISPONIVEIS:" -ForegroundColor Yellow
@@ -386,104 +691,213 @@ function Show-Help {
 }
 
 # Mostrar ajuda se solicitado
-if ($Help -or (-not $Install -and -not $Clean)) {
+if ($Help -or (-not $Install -and -not $Clean -and -not $Verify)) {
     Show-Help
     exit 0
 }
 
-# Verificar pre-requisitos.
-if (-not (Test-Prerequisites)) {
-    Write-Log "[ERRO] Pre-requisitos nao atendidos. Encerrando execucao." -Level "Error"
-    exit 1
+# ===== LOGICA DE LIMPEZA =====
+if ($Clean) {
+    # 1. Verificar administrador
+    $TempPath = Get-WorkingDirectory
+    $IsAdmin = ($TempPath -eq $null)
+    
+    # 2. Executar função de apagar
+    Clean-Environment -IsAdmin $IsAdmin -TempPath $TempPath
+    exit 0
 }
 
-# Detectar privilegios UMA VEZ.
-$IsAdmin = Test-IsAdmin
-$TempPath = if (-not $IsAdmin) { "$env:USERPROFILE\Documents\TEMP_ENV" } else { $null }
-
-if ($IsAdmin) {
-    Write-Log "[ADMIN] Modo ADMINISTRADOR detectado (Chocolatey)." -Level "Info"
+# ===== LOGICA DE INSTALACAO =====
+if ($Install) {
+    # 1. Verificar instalação do Git
+    if (-not (Test-GitInstallation)) {
+        exit 1
+    }
     
-    # Verificar se Chocolatey esta instalado.
-    if (-not (Get-Command choco -ErrorAction SilentlyContinue)) {
+    # 2. Verificar espaço de disco
+    if (-not (Test-DiskSpace)) {
+        exit 1
+    }
+    
+    # 3. Verificar arquivo.json e carregar configuração
+    $Config = Test-JsonFile
+    if (-not $Config) {
+        exit 1
+    }
+    
+    # 4. Verificar conexão com internet
+    if (-not (Test-InternetConnection)) {
+        exit 1
+    }
+    
+    # 5. Verificar administrador
+    $TempPath = Get-WorkingDirectory
+    $IsAdmin = ($TempPath -eq $null)
+    
+    # Configurar Chocolatey se admin
+    if ($IsAdmin -and -not (Get-Command choco -ErrorAction SilentlyContinue)) {
         Write-Log "[CHOCOLATEY] Instalando Chocolatey..." -Level "Info"
         try {
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
             iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
             refreshenv
             Write-Log "[SUCESSO] Chocolatey instalado com sucesso!" -Level "Success"
+            Write-Host ""
         }
         catch {
-            Write-Log "[ERRO] Falha na instalacao do Chocolatey: $($_.Exception.Message)." -Level "Error"
+            Write-Log "[ERRO] Falha na instalacao do Chocolatey: $($_.Exception.Message)" -Level "Error"
             exit 1
         }
-    } else {
-        Write-Log "[SUCESSO] Chocolatey ja esta disponivel." -Level "Success"
-    }
-} else {
-    Write-Log "[USUARIO] Modo USUARIO detectado (Instalacao Portatil)." -Level "Info"
-    Write-Log "[DIRETORIO] Diretorio: $TempPath." -Level "Info"
-}
-
-# Executar limpeza se solicitada.
-if ($Clean) {
-    Clean-Environment -IsAdmin $IsAdmin -TempPath $TempPath
-    exit 0
-}
-
-# Executar instalacao se solicitada.
-if ($Install) {
-    # Carregar configuracao.
-    $Config = Get-SoftwareConfig
-    if (-not $Config) {
-        Write-Log "[ERRO] Nao foi possivel carregar a configuracao." -Level "Error"
-        exit 1
     }
     
-    # Obter lista de softwares.
+    # Obter lista de softwares
     $SoftwareList = Get-SoftwareList -UserInput $Install -Config $Config
-    
     if ($SoftwareList.Count -eq 0) {
-        Write-Log "[ERRO] Nenhum software valido encontrado para instalacao." -Level "Error"
+        Write-Log "[ERRO] Nenhum software valido encontrado para instalacao" -Level "Error"
         exit 1
     }
     
-    # Criar diretorio portatil se necessario.
-    if (-not $IsAdmin -and $TempPath) {
-        if (-not (Test-Path $TempPath)) {
-            Write-Log "[DIRETORIO] Criando diretorio de instalacao portatil..." -Level "Info"
-            New-Item -ItemType Directory -Path $TempPath -Force | Out-Null
-        }
+    # Criar diretório portátil se necessário
+    if (-not $IsAdmin -and $TempPath -and -not (Test-Path $TempPath)) {
+        Write-Log "[DIRETORIO] Criando diretorio de instalacao portatil: $TempPath" -Level "Info"
+        New-Item -ItemType Directory -Path $TempPath -Force | Out-Null
+        Write-Host ""
     }
     
-    # Loop de instalacao.
     Write-Log "[INICIO] Iniciando instalacao de $($SoftwareList.Count) software(s)..." -Level "Info"
+    Write-Host ""
     $SuccessCount = 0
     
-    foreach ($SoftwareName in $SoftwareList) {
-        $SoftwareConfig = $Config.software.$SoftwareName
+    # 6. Para cada software do parâmetro
+    foreach ($SoftwareItem in $SoftwareList) {
+        $SoftwareName = $SoftwareItem.Name
+        $SoftwareConfig = $SoftwareItem.Config
+        Write-Log "[PROCESSANDO] $($SoftwareConfig.name)" -Level "Info"
         
-        Write-Log "[PROCESSANDO] Processando: $($SoftwareConfig.name)." -Level "Info"
+        # 6.1. Verificar parâmetro force
+        $ShouldInstall = $false
         
-        if ($IsAdmin) {
-            if (Install-ViaChocolatey -SoftwareConfig $SoftwareConfig -SoftwareName $SoftwareName -Force $Force) {
+        if ($Force) {
+            # 6.1.1. Se force, instale o software
+            Write-Log "[FORCE] Modo forcado ativado - reinstalando" -Level "Info"
+            $ShouldInstall = $true
+        }
+        else {
+            # 6.1.2. Se não force, verifique se o software existe
+            $IsInstalled = Test-SoftwareInstalled -SoftwareName $SoftwareName -SoftwareConfig $SoftwareConfig -IsAdmin $IsAdmin -InstallPath $TempPath
+            
+            if ($IsInstalled) {
+                # 6.1.2.1. Se existe, pule
+                Write-Log "[JA_INSTALADO] Software ja esta instalado - pulando" -Level "Warning"
+                $ShouldInstall = $false
+            }
+            else {
+                # 6.1.2.2. Se não existe, instale
+                Write-Log "[NAO_INSTALADO] Software nao encontrado - instalando" -Level "Info"
+                $ShouldInstall = $true
+            }
+        }
+        
+        # Instalar se necessário
+        if ($ShouldInstall) {
+            $InstallSuccess = $false
+            
+            if ($IsAdmin) {
+                $InstallSuccess = Install-ViaChocolatey -SoftwareName $SoftwareName -SoftwareConfig $SoftwareConfig -Force $Force
+            }
+            else {
+                $InstallSuccess = Install-Portable -SoftwareName $SoftwareName -SoftwareConfig $SoftwareConfig -BasePath $TempPath -Force $Force
+            }
+            
+            if ($InstallSuccess) {
                 $SuccessCount++
             }
         }
         else {
-            if (Install-Portable -SoftwareConfig $SoftwareConfig -SoftwareName $SoftwareName -BasePath $TempPath -Force $Force) {
-                $SuccessCount++
+            # Mesmo que não instale, verificar PATH se software já existe
+            if ($SoftwareConfig.path) {
+                $null = Compare-PathConfiguration -SoftwareName $SoftwareName -SoftwareConfig $SoftwareConfig -IsAdmin $IsAdmin -InstallPath $TempPath
             }
         }
+        
+        Write-Host ""  # Pular linha após cada software
     }
     
-    # Relatorio final.
-    Write-Host ""
+    # Relatório final
+    $TotalSoftware = $SoftwareList.Count
+    if ($TotalSoftware -eq $null) {
+        $TotalSoftware = ($SoftwareList | Measure-Object).Count
+    }
+    
     Write-Log "[CONCLUIDO] Instalacao concluida!" -Level "Success"
-    Write-Log "[RELATORIO] Sucessos: $SuccessCount de $($SoftwareList.Count)." -Level "Info"
+    Write-Log "[RELATORIO] Sucessos: $SuccessCount de $TotalSoftware" -Level "Info"
     
     if (-not $IsAdmin -and $SuccessCount -gt 0) {
-        Write-Log "[DIRETORIO] Softwares instalados em: $TempPath." -Level "Info"
-        Write-Log "[DICA] Adicione os executaveis ao PATH para usar globalmente." -Level "Info"
+        Write-Log "[DIRETORIO] Softwares instalados em: $TempPath" -Level "Info"
+    }
+}
+
+# ===== LOGICA DE VERIFICACAO =====
+if ($Verify) {
+    # 1. Verificar administrador
+    $TempPath = Get-WorkingDirectory
+    $IsAdmin = ($TempPath -eq $null)
+    
+    # 2. Verificar arquivo.json e carregar configuração
+    $Config = Test-JsonFile
+    if (-not $Config) {
+        exit 1
+    }
+    Write-Host ""
+    
+    # Obter lista de softwares
+    $SoftwareList = Get-SoftwareList -UserInput $Verify -Config $Config
+    if ($SoftwareList.Count -eq 0) {
+        Write-Log "[ERRO] Nenhum software valido encontrado para verificacao" -Level "Error"
+        exit 1
+    }
+    
+    Write-Log "[INICIO] Verificando configuracao de $($SoftwareList.Count) software(s)..." -Level "Info"
+    Write-Host ""
+    $ValidCount = 0
+    
+    # 3. Para cada software do parâmetro
+    foreach ($SoftwareItem in $SoftwareList) {
+        $SoftwareName = $SoftwareItem.Name
+        $SoftwareConfig = $SoftwareItem.Config
+        Write-Log "[VERIFICANDO] $($SoftwareConfig.name)" -Level "Info"
+        
+        # 3.2. Verificar caminho PATH no arquivo.json
+        if ($SoftwareConfig.path) {
+            # 3.1.1. Se tiver path, faça verificação
+            $IsValid = Compare-PathConfiguration -SoftwareName $SoftwareName -SoftwareConfig $SoftwareConfig -IsAdmin $IsAdmin -InstallPath $TempPath
+            
+            if ($IsValid) {
+                $ValidCount++
+                Write-Log "[OK] $($SoftwareConfig.name): Configuracao VALIDA" -Level "Success"
+            }
+            else {
+                Write-Log "[ERRO] $($SoftwareConfig.name): Configuracao com PROBLEMAS" -Level "Error"
+            }
+        }
+        else {
+            Write-Log "[INFO] $($SoftwareConfig.name): Nenhuma configuracao de PATH necessaria" -Level "Info"
+            $ValidCount++
+        }
+        
+        Write-Host ""  # Pular linha após cada software
+    }
+    
+    # Relatório final
+    $TotalSoftware = $SoftwareList.Count
+    if ($TotalSoftware -eq $null) {
+        $TotalSoftware = ($SoftwareList | Measure-Object).Count
+    }
+    
+    Write-Log "[CONCLUIDO] Verificacao concluida!" -Level "Success"
+    Write-Log "[RELATORIO] Validos: $ValidCount de $TotalSoftware" -Level "Info"
+    
+    if ($ValidCount -lt $TotalSoftware) {
+        Write-Log "[DICA] Execute setup.ps1 -Install [software] para reinstalar softwares com problemas" -Level "Info"
     }
 }

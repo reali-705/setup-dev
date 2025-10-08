@@ -17,6 +17,14 @@
                 "filename": "vscode.zip",
                 "extractFolder": "VSCode",
                 "executable": "Code.exe"
+            },
+            "path": {
+                "chocolatey": {
+                    "autoConfigured": true
+                },
+                "portable": {
+                    "autoConfigured": true
+                }
             }
         },
         "python": {
@@ -31,6 +39,15 @@
                 "filename": "python.zip",
                 "extractFolder": "Python",
                 "executable": "python.exe"
+            },
+            "path": {
+                "chocolatey": {
+                    "autoConfigured": true
+                },
+                "portable": {
+                    "paths": ["{InstallPath}\\Python", "{InstallPath}\\Python\\Scripts"],
+                    "scope": "User"
+                }
             }
         },
         "nodejs": {
@@ -45,6 +62,22 @@
                 "filename": "nodejs.zip",
                 "extractFolder": "NodeJS",
                 "executable": "node.exe"
+            },
+            "path": {
+                "chocolatey": {
+                    "autoConfigured": true
+                },
+                "portable": {
+                    "paths": ["{InstallPath}\\NodeJS"],
+                    "scope": "User"
+                },
+                "additional": [
+                    {
+                        "path": "{AppData}\\npm",
+                        "scope": "User",
+                        "description": "NPM global packages"
+                    }
+                ]
             }
         },
         "openjdk11": {
@@ -58,6 +91,22 @@
                 "downloadUrl": "https://api.adoptium.net/v3/binary/latest/11/ga/windows/x64/jdk/hotspot/normal/eclipse",
                 "filename": "openjdk11.zip",
                 "extractFolder": "Java"
+            },
+            "path": {
+                "chocolatey": {
+                    "paths": ["{ProgramFiles}\\OpenJDK\\jdk-11.*\\bin"],
+                    "scope": "Machine",
+                    "environmentVariables": {
+                        "JAVA_HOME": "{ProgramFiles}\\OpenJDK\\jdk-11.*"
+                    }
+                },
+                "portable": {
+                    "paths": ["{InstallPath}\\Java\\bin"],
+                    "scope": "User",
+                    "environmentVariables": {
+                        "JAVA_HOME": "{InstallPath}\\Java"
+                    }
+                }
             }
         },
         "sqlite": {
@@ -90,6 +139,12 @@
             "version": "20240727",
             "chocolatey": {
                 "packageName": "msys2"
+            },
+            "path": {
+                "chocolatey": {
+                    "paths": ["C:\\msys64\\mingw64\\bin", "C:\\msys64\\usr\\bin"],
+                    "scope": "Machine"
+                }
             }
         },
         "dotnet-sdk": {

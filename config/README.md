@@ -23,7 +23,7 @@ if (Test-Path $PROFILE) {
 }
 
 # 3. Aplicar o novo profile
-$sourcePath = "c:\Users\PC\Desktop\projetos\setup-dev\config\powershell-profile.ps1"
+$sourcePath = "C:\{Caminho\Para\Projeto}\setup-dev\config\powershell-profile.ps1"
 Copy-Item $sourcePath $PROFILE
 ```
 
@@ -166,10 +166,11 @@ Crie `.vscode/settings.json` na raiz do projeto:
 #### **Para Python**
 ```json
 {
-  "python.linting.enabled": true,
-  "python.linting.pylintEnabled": true,
+  "python.analysis.typeCheckingMode": "basic",
+  "python.analysis.autoImportCompletions": true,
   "python.formatting.blackArgs": ["--line-length=88"],
-  "python.analysis.typeCheckingMode": "basic"
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false
 }
 ```
 
@@ -206,7 +207,8 @@ Crie `.vscode/settings.json` na raiz do projeto:
 #### **Linguagens Core**
 - `ms-python.python` - Suporte completo Python
 - `ms-python.black-formatter` - Formatação Python
-- `ms-python.pylint` - Linting Python
+- `ms-python.vscode-pylance` - IntelliSense avançado Python
+- `ms-python.debugpy` - Debug para pytest e desenvolvimento
 - `esbenp.prettier-vscode` - Formatação JS/TS/HTML/CSS
 - `dbaeumer.vscode-eslint` - Linting JavaScript/TypeScript
 
@@ -219,12 +221,18 @@ Crie `.vscode/settings.json` na raiz do projeto:
 - `ms-vscode.powershell` - Suporte PowerShell
 - `redhat.vscode-yaml` - Editor YAML
 - `ms-vscode.vscode-json` - Editor JSON melhorado
+- `ms-vscode.vscode-typescript-next` - TypeScript avançado
+- `formulahendry.code-runner` - Execução rápida de código
 
 #### **Produtividade**
 - `github.copilot` - IA para código
 - `github.copilot-chat` - Chat com IA
 - `formulahendry.auto-rename-tag` - Renomear tags HTML
 - `christian-kohler.path-intellisense` - Autocomplete de paths
+
+#### **Web Development**
+- `bradlc.vscode-tailwindcss` - TailwindCSS IntelliSense
+- `ms-vscode-remote.remote-wsl` - Desenvolvimento com WSL
 
 ### 🔧 **Gerenciar Extensões**
 
@@ -324,6 +332,8 @@ code --list-extensions
 ```
 
 ### **Troubleshooting**
+
+#### **PowerShell Profile**
 ```powershell
 # Recarregar profile
 . $PROFILE
@@ -331,9 +341,26 @@ code --list-extensions
 # Verificar erros no profile
 $Error[0] | Format-List -Force
 
+# Testar função específica
+Test-Path (Get-Command venv).Source
+```
+
+#### **VS Code + Python**
+```powershell
+# Verificar Pylance ativo
+code --list-extensions | findstr pylance
+
 # Resetar configurações VS Code
 Move-Item "$env:APPDATA\Code\User\settings.json" "settings-backup.json"
+
+# Verificar interpretador Python
+# No VS Code: Ctrl+Shift+P → "Python: Select Interpreter"
 ```
+
+#### **Debugging Issues**
+- **pytest não funciona**: Instale `debugpy` com `pip install debugpy`
+- **Code Runner não executa**: Verifique se Python está no PATH
+- **Pylance lento**: Desative outras extensões Python conflitantes
 
 ---
 
