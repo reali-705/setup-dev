@@ -17,4 +17,3 @@ ms-vscode-remote.remote-wsl
 formulahendry.auto-rename-tag
 formulahendry.code-runner
 christian-kohler.path-intellisense
-ms-vscode.vscode-json

@@ -1,4 +1,5 @@
 {
+  "locale": "pt-br",
   "workbench.colorTheme": "One Dark Pro",
   "workbench.iconTheme": "material-icon-theme",
   "editor.fontFamily": "Fira Code, JetBrains Mono, Consolas, 'Courier New'",

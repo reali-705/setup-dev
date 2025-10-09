@@ -900,4 +900,5 @@ if ($Verify) {
     if ($ValidCount -lt $TotalSoftware) {
         Write-Log "[DICA] Execute setup.ps1 -Install [software] para reinstalar softwares com problemas" -Level "Info"
     }
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
 }
