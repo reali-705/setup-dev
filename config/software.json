@@ -1,159 +1,98 @@
 {
-    "metadata": {
-        "version": "1.0.0",
-        "lastUpdated": "2024-10-06",
-        "description": "Setup essencial para Ciência da Computação"
+    "vscode": {
+        "name": "Visual Studio Code",
+        "description": "Editor de código moderno e extensível",
+        "chocolatey": {
+            "packageName": "vscode"
+        },
+        "portable": {
+            "link": "https://code.visualstudio.com/sha/download?build=stable&os=win32-x64-archive",
+            "directory": "VSCode"
+        }
     },
-    "software": {
-        "vscode": {
-            "name": "Visual Studio Code",
-            "description": "Editor de código moderno e extensível",
-            "version": "1.93.1",
-            "chocolatey": {
-                "packageName": "vscode"
-            },
-            "portable": {
-                "downloadUrl": "https://code.visualstudio.com/sha/download?build=stable&os=win32-x64-archive",
-                "filename": "vscode.zip",
-                "extractFolder": "VSCode",
-                "executable": "Code.exe"
-            },
-            "path": {
-                "chocolatey": {
-                    "autoConfigured": true
-                },
-                "portable": {
-                    "autoConfigured": true
-                }
-            }
+    "python": {
+        "name": "Python",
+        "description": "Linguagem versátil para IA, web e automação",
+        "chocolatey": {
+            "packageName": "python"
         },
-        "python": {
-            "name": "Python",
-            "description": "Linguagem versátil para IA, web e automação",
-            "version": "3.12.6",
-            "chocolatey": {
-                "packageName": "python"
-            },
-            "portable": {
-                "downloadUrl": "https://www.python.org/ftp/python/3.12.6/python-3.12.6-embed-amd64.zip",
-                "filename": "python.zip",
-                "extractFolder": "Python",
-                "executable": "python.exe"
-            },
-            "path": {
-                "chocolatey": {
-                    "autoConfigured": true
-                },
-                "portable": {
-                    "paths": ["{InstallPath}\\Python", "{InstallPath}\\Python\\Scripts"],
-                    "scope": "User"
-                }
-            }
+        "portable": {
+            "link": "https://www.python.org/ftp/python/3.12.6/python-3.12.6-embed-amd64.zip",
+            "directory": "Python",
+            "path": [
+                "Python",
+                "Python\\Scripts"
+            ]
+        }
+    },
+    "nodejs": {
+        "name": "Node.js",
+        "description": "Runtime JavaScript para desenvolvimento web",
+        "chocolatey": {
+            "packageName": "nodejs"
         },
-        "nodejs": {
-            "name": "Node.js",
-            "description": "Runtime JavaScript para desenvolvimento web",
-            "version": "20.17.0",
-            "chocolatey": {
-                "packageName": "nodejs"
-            },
-            "portable": {
-                "downloadUrl": "https://nodejs.org/dist/v20.17.0/node-v20.17.0-win-x64.zip",
-                "filename": "nodejs.zip",
-                "extractFolder": "NodeJS",
-                "executable": "node.exe"
-            },
-            "path": {
-                "chocolatey": {
-                    "autoConfigured": true
-                },
-                "portable": {
-                    "paths": ["{InstallPath}\\NodeJS"],
-                    "scope": "User"
-                },
-                "additional": [
-                    {
-                        "path": "{AppData}\\npm",
-                        "scope": "User",
-                        "description": "NPM global packages"
-                    }
-                ]
-            }
+        "portable": {
+            "link": "https://nodejs.org/dist/v20.17.0/node-v20.17.0-win-x64.zip",
+            "directory": "NodeJS",
+            "path": [
+                "NodeJS"
+            ]
+        }
+    },
+    "openjdk11": {
+        "name": "OpenJDK 11",
+        "description": "Kit de desenvolvimento Java LTS",
+        "chocolatey": {
+            "packageName": "openjdk11",
+            "path": [
+                "C:\\Program Files\\AdoptOpenJDK\\jdk-11.0.22.7-hotspot\\bin"
+            ]
         },
-        "openjdk11": {
-            "name": "OpenJDK 11",
-            "description": "Kit de desenvolvimento Java LTS",
-            "version": "11.0.24",
-            "chocolatey": {
-                "packageName": "openjdk11"
-            },
-            "portable": {
-                "downloadUrl": "https://api.adoptium.net/v3/binary/latest/11/ga/windows/x64/jdk/hotspot/normal/eclipse",
-                "filename": "openjdk11.zip",
-                "extractFolder": "Java"
-            },
-            "path": {
-                "chocolatey": {
-                    "paths": ["{ProgramFiles}\\OpenJDK\\jdk-11.*\\bin"],
-                    "scope": "Machine",
-                    "environmentVariables": {
-                        "JAVA_HOME": "{ProgramFiles}\\OpenJDK\\jdk-11.*"
-                    }
-                },
-                "portable": {
-                    "paths": ["{InstallPath}\\Java\\bin"],
-                    "scope": "User",
-                    "environmentVariables": {
-                        "JAVA_HOME": "{InstallPath}\\Java"
-                    }
-                }
-            }
-        },
-        "sqlite": {
-            "name": "SQLite",
-            "description": "Banco de dados leve e embarcado",
-            "version": "3.46.1",
-            "chocolatey": {
-                "packageName": "sqlite"
-            }
-        },
-        "mysql": {
-            "name": "MySQL Server",
-            "description": "Sistema de gerenciamento de banco relacional",
-            "version": "8.0.39",
-            "chocolatey": {
-                "packageName": "mysql"
-            }
-        },
-        "postman": {
-            "name": "Postman",
-            "description": "Plataforma para teste de APIs",
-            "version": "11.14.0",
-            "chocolatey": {
-                "packageName": "postman"
-            }
-        },
-        "msys2": {
-            "name": "MSYS2",
-            "description": "Ambiente UNIX para Windows com GCC",
-            "version": "20240727",
-            "chocolatey": {
-                "packageName": "msys2"
-            },
-            "path": {
-                "chocolatey": {
-                    "paths": ["C:\\msys64\\mingw64\\bin", "C:\\msys64\\usr\\bin"],
-                    "scope": "Machine"
-                }
-            }
-        },
-        "dotnet-sdk": {
-            "name": ".NET SDK",
-            "description": "Kit de desenvolvimento .NET",
-            "version": "8.0.403",
-            "chocolatey": {
-                "packageName": "dotnet-sdk"
-            }
+        "portable": {
+            "link": "https://api.adoptium.net/v3/binary/latest/11/ga/windows/x64/jdk/hotspot/normal/eclipse",
+            "directory": "OpenJDK11",
+            "path": [
+                "OpenJDK11\\bin"
+            ]
+        }
+    },
+    "sqlite": {
+        "name": "SQLite",
+        "description": "Banco de dados leve e embarcado",
+        "chocolatey": {
+            "packageName": "sqlite"
+        }
+    },
+    "mysql": {
+        "name": "MySQL Server",
+        "description": "Sistema de gerenciamento de banco relacional",
+        "chocolatey": {
+            "packageName": "mysql"
+        }
+    },
+    "postman": {
+        "name": "Postman",
+        "description": "Plataforma para teste de APIs",
+        "chocolatey": {
+            "packageName": "postman"
+        }
+    },
+    "msys2": {
+        "name": "MSYS2",
+        "description": "Ambiente UNIX para Windows com GCC",
+        "chocolatey": {
+            "packageName": "msys2",
+            "path": [
+                "C:\\msys64\\mingw64\\bin",
+                "C:\\msys64\\usr\\bin"
+            ]
+        }
+    },
+    "dotnet-sdk": {
+        "name": ".NET SDK",
+        "description": "Kit de desenvolvimento .NET",
+        "chocolatey": {
+            "packageName": "dotnet-sdk"
         }
     }
 }
