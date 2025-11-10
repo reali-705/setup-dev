@@ -1,0 +1,26 @@
+[project]
+name = "{{NOME_DO_PROJETO}}"
+version = "0.1.0"
+description = "Descrição do projeto."
+
+[project.dependencies]
+
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",  # (Bónus: para medir cobertura de testes)
+    "httpx"        # (Bónus: para testar endpoints de API)
+]
+
+# =========================================================
+# CONFIGURAÇÃO DO PYTEST
+# =========================================================
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"  # Opções de linha de comando (quieto, mas mostra resumo)
+
+testpaths = [
+    "tests",
+]
+pythonpath = "src"
