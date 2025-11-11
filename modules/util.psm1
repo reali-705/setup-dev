@@ -14,9 +14,9 @@
     O conteúdo da mensagem a ser exibida. Este é um parâmetro posicional.
     (Aliases: -m, -msg)
 
-.PARAMETER Level
+.PARAMETER Type
     O nível da mensagem, que controla a cor. (Padrão: "Info")
-    (Alias: -l)
+    (Alias: -t)
 
 .NOTES
     Alias de função: wl
@@ -29,9 +29,9 @@ function Write-Log {
         [string]$Message,
 
         [Parameter(Mandatory=$false)]
-        [Alias("l")]
+        [Alias("t")]
         [ValidateSet("Info", "Warning", "Error", "Success", "Debug", "Atention")]
-        [string]$Level = "Info"
+        [string]$Type = "Info"
     )
     
     $Colors = @{
@@ -44,7 +44,7 @@ function Write-Log {
     }
     
     $Timestamp = Get-Date -Format "HH:mm:ss"
-    Write-Host "[$Timestamp] [$Level] $Message" -ForegroundColor $Colors[$Level]
+    Write-Host "[$Timestamp] [$Type] $Message" -ForegroundColor $Colors[$Type]
 }
 
 <#
