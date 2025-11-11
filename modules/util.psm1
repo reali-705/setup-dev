@@ -18,14 +18,6 @@
     O nível da mensagem, que controla a cor. (Padrão: "Info")
     (Alias: -l)
 
-.EXAMPLE
-    PS C:\> wl "Servidor iniciado com sucesso." -l Success
-    [14:30:01] [Success] Servidor iniciado com sucesso.
-
-.EXAMPLE
-    PS C:\> wl "Arquivo config.json não encontrado."
-    [14:30:05] [Info] Arquivo config.json não encontrado.
-
 .NOTES
     Alias de função: wl
 #>
@@ -38,7 +30,7 @@ function Write-Log {
 
         [Parameter(Mandatory=$false)]
         [Alias("l")]
-        [ValidateSet("Info", "Warning", "Error", "Success", "Debug")]
+        [ValidateSet("Info", "Warning", "Error", "Success", "Debug", "Atention")]
         [string]$Level = "Info"
     )
     
@@ -48,6 +40,7 @@ function Write-Log {
         "Error"   = "Red"
         "Success" = "Green"
         "Debug"   = "Gray"
+        "Atention"= "Cyan"
     }
     
     $Timestamp = Get-Date -Format "HH:mm:ss"
