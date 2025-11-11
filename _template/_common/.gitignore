@@ -1,0 +1,79 @@
+# --- ARQUIVOS DE SISTEMA OPERACIONAL (macOS, Windows, Linux) ---
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+*~
+*.swp
+*.swo
+
+# --- ARQUIVOS DE IDE E EDITORES ---
+# VSCode
+.vscode/
+*.code-workspace
+
+# JetBrains (IntelliJ, PyCharm, WebStorm, etc.)
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Outros
+.project
+.classpath
+.settings/
+*.sublime-workspace
+
+# --- VARIÁVEIS DE AMBIENTE E CONFIGURAÇÃO ---
+.env
+.env.*
+# exceto arquivos de exemplo
+!.env.example
+
+# --- ARQUIVOS GERAIS DE BUILD E LOGS ---
+build/
+dist/
+*.log
+*.log.*
+npm-debug.log*
+yarn-error.log
+
+# --- PYTHON ---
+# Ambientes Virtuais
+.venv/
+venv/
+env/
+
+# Caches
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+
+# Pacotes e Build
+*.pyc
+*.egg-info/
+*.dist-info/
+pip-wheel-metadata/
+develop-eggs/
+
+
+# --- NODE.JS / TYPESCRIPT ---
+node_modules/
+
+# --- JAVA ---
+target/
+*.jar
+*.war
+*.ear
+.gradle/
+
+# --- BANCO DE DADOS E ARQUIVOS TEMPORÁRIOS ---
+*.db
+*.sqlite
+*.sqlite3
+*.sql
+*.rdb
+
+# Pastas de Upload (comum em projetos web)
+uploads/
+media/
