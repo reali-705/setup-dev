@@ -1,4 +1,4 @@
-using module ".\utils.psm1"
+﻿using module ".\util.psm1"
 
 # =========================================================
 # FUNÇÕES DE AJUDA AO DESENVOLVIMENTO
@@ -18,12 +18,20 @@ using module ".\utils.psm1"
     Se omitido, o padrão é o diretório atual ('.').
     Este é um parâmetro posicional.
 
+.EXAMPLE
+    PS C:\projetos> vsc
+    (Abre o VS Code na pasta C:\projetos)
+
+.EXAMPLE
+    PS C:\> vsc C:\projetos\minha-api
+    (Abre o VS Code na pasta C:\projetos\minha-api)
+
 .NOTES
-    Alias de função: cdr
+    Alias de função: vsc
     Esta função requer que o 'code.exe' (VS Code)
     esteja disponível no seu PATH de ambiente.
 #>
-function Open-VSCodeWorkspace {
+function Open-VSCode {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory=$false, Position=0)]
@@ -35,7 +43,7 @@ function Open-VSCodeWorkspace {
         $fullPath = Resolve-Path -Path $Path -ErrorAction Stop
 
         wl "Abrindo o VSCode no caminho..."
-        wl $fullPath.Path -t Atention # (Usar .Path para obter a string limpa)
+        wl $fullPath.Path -t Atenção # (Usar .Path para obter a string limpa)
 
         Start-Process "code" -ArgumentList "--reuse-window", "`"$($fullPath.Path)`"" -NoNewWindow -ErrorAction Stop
         
@@ -49,7 +57,7 @@ function Open-VSCodeWorkspace {
 
 <#
 .SYNOPSIS
-    Ativa o ambiente virtual Python (.venv) no escopo atual.
+    Invoca o script de ativação do ambiente virtual Python (.venv).
 
 .DESCRIPTION
     Procura por um ambiente virtual na pasta './.venv' e, se
@@ -66,7 +74,7 @@ function Open-VSCodeWorkspace {
     Esta função deve ser executada na raiz de um projeto Python
     que contenha uma pasta '.venv' criada pelo 'python -m venv'.
 #>
-function Activate-VirtualEnvironment {
+function Invoke-Venv {
     [CmdletBinding()]
     param()
 
@@ -74,7 +82,7 @@ function Activate-VirtualEnvironment {
 
     if (-not (Test-Path -Path $venvPath)) {
         wl "Ambiente virtual '.venv' não encontrado em: $(Get-Location)" -t Warning
-        wl "Para criar um ambiente, execute: python -m venv .venv" -t Atention
+        wl "Para criar um ambiente, execute: python -m venv .venv" -t Atenção
         return
     }
 
@@ -90,16 +98,11 @@ function Activate-VirtualEnvironment {
     }
 }
 
-
 # =========================================================
 # EXPORTS E ALIASES DAS FUNÇÕES
-# (Essencial para o 'maestro' powershell-profile.ps1)
 # =========================================================
 
-Set-Alias -Name "cdr" -Value "Open-VSCodeWorkspace"
-Set-Alias -Name "venv" -Value "Activate-VirtualEnvironment"
+Set-Alias -Name "vsc" -Value "Open-VSCode"
+Set-Alias -Name "venv" -Value "Invoke-Venv"
 
-Export-ModuleMember -Function (
-    Open-VSCodeWorkspace,
-    Activate-VirtualEnvironment
-)
+Export-ModuleMember -Function "Open-VSCode", "Invoke-Venv" -Alias "vsc", "venv"

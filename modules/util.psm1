@@ -1,4 +1,4 @@
-# =========================================================
+﻿# =========================================================
 # MÓDULO: UTIL (Funções Base)
 # =========================================================
 
@@ -30,7 +30,7 @@ function Write-Log {
 
         [Parameter(Mandatory=$false)]
         [Alias("t")]
-        [ValidateSet("Info", "Warning", "Error", "Success", "Debug", "Atention")]
+        [ValidateSet("Info", "Warning", "Error", "Success", "Debug", "Atenção")]
         [string]$Type = "Info"
     )
     
@@ -40,7 +40,7 @@ function Write-Log {
         "Error"   = "Red"
         "Success" = "Green"
         "Debug"   = "Gray"
-        "Atention"= "Cyan"
+        "Atenção"= "Cyan"
     }
     
     $Timestamp = Get-Date -Format "HH:mm:ss"
@@ -61,40 +61,16 @@ function Write-Log {
     precisam ser carregadas pelo script de profile.
 #>
 function Set-TerminalSyntaxTheme {
-    Write-Log "Aplicando tema de sintaxe ao terminal..."
-
     Set-PSReadLineOption -Colors @{
-        Command            = [ConsoleColor]::Cyan
-        Parameter          = [ConsoleColor]::Yellow
+        Command            = [ConsoleColor]::DarkYellow
+        Parameter          = [ConsoleColor]::Cyan
         String             = [ConsoleColor]::Green
-        Number             = [ConsoleColor]::Magenta
-        Operator           = [ConsoleColor]::White
+        Number             = [ConsoleColor]::Blue
+        Operator           = [ConsoleColor]::DarkMagenta
         Variable           = [ConsoleColor]::Blue
-        Type               = [ConsoleColor]::DarkCyan
+        Type               = [ConsoleColor]::White
         Comment            = [ConsoleColor]::DarkGreen
     }
-}
-
-<#
-.SYNOPSIS
-    Configura o autocompletar (Tab) para usar menus e histórico.
-
-.DESCRIPTION
-    Ativa duas funcionalidades de produtividade:
-    1. O menu de autocompletar interativo (modo 'Windows').
-    2. As "sugestões fantasma" baseadas no seu histórico (modo 'InlineView').
-
-.NOTES
-    Alias de função: tc
-    As configurações são válidas apenas para a sessão atual e
-    precisam ser carregadas pelo script de profile.
-#>
-function Set-TerminalCompletion {
-    Write-Log "Aplicando configuracoes de autocompletar..."
-
-    Set-PSReadLineOption -EditMode Windows
-    Set-PSReadLineOption -PredictionSource History
-    Set-PSReadLineOption -PredictionViewStyle InlineView
 }
 
 # =========================================================
@@ -102,10 +78,5 @@ function Set-TerminalCompletion {
 # =========================================================
 
 Set-Alias -Name "wl" -Value "Write-Log"
-Set-Alias -Name "tst" -Value "Set-TerminalSyntaxTheme"
-Set-Alias -Name "tc" -Value "Set-TerminalCompletion"
-Export-ModuleMember -Function (
-    Write-Log,
-    Set-TerminalSyntaxTheme,
-    Set-TerminalCompletion
-)
+
+Export-ModuleMember -Function "Write-Log", "Set-TerminalSyntaxTheme" -Alias "wl"

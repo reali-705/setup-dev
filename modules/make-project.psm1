@@ -1,4 +1,4 @@
-using module ".\util.psm1"
+﻿using module ".\util.psm1"
 
 # =========================================================
 # FUNÇÕES AUXILIARES (PRIVADAS)
@@ -57,7 +57,7 @@ function Invoke-NodeEnvInstall {
         return $true
     } catch {
         wl "Falha ao instalar as dependências do npm: $_" -t Warning
-        wl "O projeto foi criado, mas voce precisara instalar as dependências manualmente." -t Warning
+        wl "O projeto foi criado, mas você precisará instalar as dependências manualmente." -t Warning
         return $false
     }
 }
@@ -157,17 +157,15 @@ function New-Project {
 
     # Validação de caminhos e existência de projeto iguais
     if (-not (Test-Path -Path $templatePath)) {
-        wl "Template '$Language/$Type' nao encontrado em '$templatePath'." -t Error
+        wl "Template '$Language/$Type' não encontrado em '$templatePath'." -t Error
         return
     }
     if (Test-Path -Path $destinationPath) {
-        wl "O projeto '$ProjectName' ja existe em '$ProjectPath'." -t Error
+        wl "O projeto '$ProjectName' já existe em '$ProjectPath'." -t Error
         return
     }
 
-    # =========================================================
     # 1. GERAÇÃO DA ESTRUTURA (Lógica Comum)
-    # =========================================================
     try {
         wl "Criando projeto '$ProjectName' (Template: '$Language/$Type') em '$destinationPath'..."
 
@@ -207,57 +205,53 @@ function New-Project {
         return
     }
 
-    # =========================================================
     # 2. INSTALAÇÃO DE DEPENDÊNCIAS (Lógica Específica)
-    # =========================================================
     $installSuccess = $false
     if ($Language -eq "python") {
-        # Chama a função helper privada de Python
         $installSuccess = Invoke-PythonEnvInstall -DestinationPath $destinationPath
     } 
     elseif ($Language -eq "typescript") {
-        # Chama a função helper privada de Node
         $installSuccess = Invoke-NodeEnvInstall -DestinationPath $destinationPath
     }
     elseif ($Language -eq "java") {
         $installSuccess = Invoke-JavaEnvInstall -DestinationPath $destinationPath
     }
 
-    # =========================================================
     # 3. PRÓXIMOS PASSOS (Lógica Específica)
-    # =========================================================
     wl "Projeto concluído!" -t Success
-    wl "Próximos passos:" -t Atention
-    wl "1. cd $ProjectName" -t Atention
+    wl "Próximos passos:" -t Atenção
+    wl "1. cd $ProjectName" -t Atenção
     $ProximoPasso = 2
     
     if ($Language -eq "python") {
-        wl "$ProximoPasso. venv (para ativar o ambiente virtual)" -t Atention
+        wl "$ProximoPasso. venv (para ativar o ambiente virtual)" -t Atenção
         $ProximoPasso++
         if (-not $installSuccess) {
-            wl "$ProximoPasso. pip install -e .[dev] (para instalar as dependências)" -t Atention
+            wl "$ProximoPasso. pip install -e .[dev] (para instalar as dependências)" -t Atenção
             $ProximoPasso++
         }
     }
     elseif ($Language -eq "typescript") {
         if (-not $installSuccess) {
-            wl "$ProximoPasso. npm install (para instalar as dependências)" -t Atention
+            wl "$ProximoPasso. npm install (para instalar as dependências)" -t Atenção
             $ProximoPasso++
         }
-        wl "$ProximoPasso. npm run dev (para iniciar o servidor)" -t Atention
+        wl "$ProximoPasso. npm run dev (para iniciar o servidor)" -t Atenção
     }
     elseif ($Language -eq "java") {
         if (-not $installSuccess) {
-            wl "$ProximoPasso. mvn package (para baixar as dependências e compilar o projeto)" -t Atention
+            wl "$ProximoPasso. mvn package (para baixar as dependências e compilar o projeto)" -t Atenção
             $ProximoPasso++
         }
-        wl "$ProximoPasso. (Configurar o ambiente Java conforme necessário)" -t Atention
+        wl "$ProximoPasso. (Configurar o ambiente Java conforme necessário)" -t Atenção
     }
-    wl "$ProximoPasso. Começar a desenvolver!" -t Atention
+    wl "$ProximoPasso. Começar a desenvolver!" -t Atenção
 }
 
 # =========================================================
 # EXPORTS E ALIASES DAS FUNÇÕES
 # =========================================================
-Set-Alias -Name "mkp" -Value "New-Project"
-Export-ModuleMember -Function New-Project
+
+Set-Alias -Name "newp" -Value "New-Project"
+
+Export-ModuleMember -Function "New-Project" -Alias "newp"
