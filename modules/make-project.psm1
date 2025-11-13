@@ -13,7 +13,7 @@ function Invoke-PythonEnvInstall {
     param (
         [string]$DestinationPath
     )
-    
+
     try {
         wl "Configurando ambiente virtual e instalando dependências..."
         $pythonExe = (Get-Command python -ErrorAction Stop).Source
@@ -44,7 +44,7 @@ function Invoke-NodeEnvInstall {
     param (
         [string]$DestinationPath
     )
-    
+
     try {
         wl "Instalando dependências com npm..."
         $npmExe = (Get-Command npm -ErrorAction Stop).Source
@@ -151,8 +151,8 @@ function New-Project {
     if ($Language -eq "ts") { $Language = "typescript" }
     if ($Language -eq "jv") { $Language = "java" }
 
-    $commonPath = Join-Path -Path $PSScriptRoot -ChildPath "..\_templates\_common"
-    $templatePath = Join-Path -Path $PScriptRoot -ChildPath "..\_templates\$Language\$Type"
+    $commonPath = Join-Path -Path $PSScriptRoot -ChildPath "..\_template\_common"
+    $templatePath = Join-Path -Path $PSScriptRoot -ChildPath "..\_template\$Language\$Type"
     $destinationPath = Join-Path -Path $ProjectPath -ChildPath $ProjectName
 
     # Validação de caminhos e existência de projeto iguais
@@ -169,6 +169,7 @@ function New-Project {
     try {
         wl "Criando projeto '$ProjectName' (Template: '$Language/$Type') em '$destinationPath'..."
 
+        New-Item -Path $destinationPath -ItemType Directory -ErrorAction Stop | Out-Null
         # Cópia dos arquivos do template
         Copy-Item -Path "$commonPath\*" -Destination $destinationPath -Recurse -Container -ErrorAction Stop
         Copy-Item -Path "$templatePath\*" -Destination $destinationPath -Recurse -Container -ErrorAction Stop
@@ -181,19 +182,20 @@ function New-Project {
                 Rename-Item -Path $genericSrcPath -NewName $PackageName -ErrorAction Stop
             }
         }
-        
+
         # Lógica de Substituição de Placeholders
         wl "Personalizando arquivos do projeto..."
         $filesToUpdate = @(
-            Join-Path $destinationPath "README.md",
-            Join-Path $destinationPath "pyproject.toml",    # Para Python
-            Join-Path $destinationPath "package.json"       # Para TypeScript
-            Join-Path $destinationPath "pom.xml"            # Para Java
+            "readme.md",
+            "pyproject.toml",    # Para Python
+            "package.json",      # Para TypeScript
+            "pom.xml"            # Para Java
         )
-        
+
         foreach ($file in $filesToUpdate) {
+            $file = Join-Path -Path $destinationPath -ChildPath $file
             if (Test-Path -Path $file) {
-                (Get-Content -Path $file -Raw) -replace $templateNameProject, $ProjectName | Set-Content -Path $file -Encoding UTF8 -ErrorAction Stop
+                (Get-Content -Path $file -Raw) -creplace $templateNameProject, $ProjectName | Set-Content -Path $file -Encoding UTF8 -ErrorAction Stop
             }
         }
 
@@ -209,7 +211,7 @@ function New-Project {
     $installSuccess = $false
     if ($Language -eq "python") {
         $installSuccess = Invoke-PythonEnvInstall -DestinationPath $destinationPath
-    } 
+    }
     elseif ($Language -eq "typescript") {
         $installSuccess = Invoke-NodeEnvInstall -DestinationPath $destinationPath
     }
@@ -222,7 +224,7 @@ function New-Project {
     wl "Próximos passos:" -t Atenção
     wl "1. cd $ProjectName" -t Atenção
     $ProximoPasso = 2
-    
+
     if ($Language -eq "python") {
         wl "$ProximoPasso. venv (para ativar o ambiente virtual)" -t Atenção
         $ProximoPasso++
