@@ -1,8 +1,8 @@
-# {{NOME_DO_PROJETO}}
+﻿# {{NOME_DO_PROJETO}}
 
 **Linguagem:** {{LINGUAGEM}}.  
 **Autor:** [Alessandro Reali](https://github.com/reali-705).  
-**Status:** 🚧 Em Desenvolvimento 🚧
+**Status:** Em Desenvolvimento
 
 ## 🚀 Configuração Inicial
 
