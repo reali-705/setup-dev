@@ -1,4 +1,4 @@
-# =========================================================
+﻿# =========================================================
 # MÓDULO: UTIL (Funções Base)
 # =========================================================
 
@@ -14,17 +14,9 @@
     O conteúdo da mensagem a ser exibida. Este é um parâmetro posicional.
     (Aliases: -m, -msg)
 
-.PARAMETER Level
+.PARAMETER Type
     O nível da mensagem, que controla a cor. (Padrão: "Info")
-    (Alias: -l)
-
-.EXAMPLE
-    PS C:\> wl "Servidor iniciado com sucesso." -l Success
-    [14:30:01] [Success] Servidor iniciado com sucesso.
-
-.EXAMPLE
-    PS C:\> wl "Arquivo config.json não encontrado."
-    [14:30:05] [Info] Arquivo config.json não encontrado.
+    (Alias: -t)
 
 .NOTES
     Alias de função: wl
@@ -37,9 +29,9 @@ function Write-Log {
         [string]$Message,
 
         [Parameter(Mandatory=$false)]
-        [Alias("l")]
-        [ValidateSet("Info", "Warning", "Error", "Success", "Debug")]
-        [string]$Level = "Info"
+        [Alias("t")]
+        [ValidateSet("Info", "Warning", "Error", "Success", "Debug", "Atenção")]
+        [string]$Type = "Info"
     )
     
     $Colors = @{
@@ -48,10 +40,11 @@ function Write-Log {
         "Error"   = "Red"
         "Success" = "Green"
         "Debug"   = "Gray"
+        "Atenção"= "Cyan"
     }
     
     $Timestamp = Get-Date -Format "HH:mm:ss"
-    Write-Host "[$Timestamp] [$Level] $Message" -ForegroundColor $Colors[$Level]
+    Write-Host "[$Timestamp] [$Type] $Message" -ForegroundColor $Colors[$Type]
 }
 
 <#
@@ -68,40 +61,16 @@ function Write-Log {
     precisam ser carregadas pelo script de profile.
 #>
 function Set-TerminalSyntaxTheme {
-    Write-Log "Aplicando tema de sintaxe ao terminal..."
-
     Set-PSReadLineOption -Colors @{
-        Command            = [ConsoleColor]::Cyan
-        Parameter          = [ConsoleColor]::Yellow
+        Command            = [ConsoleColor]::DarkYellow
+        Parameter          = [ConsoleColor]::Cyan
         String             = [ConsoleColor]::Green
-        Number             = [ConsoleColor]::Magenta
-        Operator           = [ConsoleColor]::White
+        Number             = [ConsoleColor]::Blue
+        Operator           = [ConsoleColor]::DarkMagenta
         Variable           = [ConsoleColor]::Blue
-        Type               = [ConsoleColor]::DarkCyan
+        Type               = [ConsoleColor]::White
         Comment            = [ConsoleColor]::DarkGreen
     }
-}
-
-<#
-.SYNOPSIS
-    Configura o autocompletar (Tab) para usar menus e histórico.
-
-.DESCRIPTION
-    Ativa duas funcionalidades de produtividade:
-    1. O menu de autocompletar interativo (modo 'Windows').
-    2. As "sugestões fantasma" baseadas no seu histórico (modo 'InlineView').
-
-.NOTES
-    Alias de função: tc
-    As configurações são válidas apenas para a sessão atual e
-    precisam ser carregadas pelo script de profile.
-#>
-function Set-TerminalCompletion {
-    Write-Log "Aplicando configuracoes de autocompletar..."
-
-    Set-PSReadLineOption -EditMode Windows
-    Set-PSReadLineOption -PredictionSource History
-    Set-PSReadLineOption -PredictionViewStyle InlineView
 }
 
 # =========================================================
@@ -109,10 +78,5 @@ function Set-TerminalCompletion {
 # =========================================================
 
 Set-Alias -Name "wl" -Value "Write-Log"
-Set-Alias -Name "tst" -Value "Set-TerminalSyntaxTheme"
-Set-Alias -Name "tc" -Value "Set-TerminalCompletion"
-Export-ModuleMember -Function (
-    Write-Log,
-    Set-TerminalSyntaxTheme,
-    Set-TerminalCompletion
-)
+
+Export-ModuleMember -Function "Write-Log", "Set-TerminalSyntaxTheme" -Alias "wl"

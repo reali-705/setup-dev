@@ -1,0 +1,35 @@
+[project]
+name = "{{NOME_DO_PROJETO}}"
+version = "0.1.0"
+description = "Descrição do projeto."
+authors = [
+    {
+        name = "Alessandro Reali",
+        email = "alessandro.reali.3110@gmail.com",
+        github = "https://github.com/reali-705"
+    }
+]
+
+[project.dependencies]
+"fastapi"
+"uvicorn[standard]"
+"sqlalchemy"
+"pydantic-settings"
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",  # (Bónus: para medir cobertura de testes)
+    "httpx"        # (Bónus: para testar endpoints de API)
+]
+
+# =========================================================
+# CONFIGURAÇÃO DO PYTEST
+# =========================================================
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"  # Opções de linha de comando (quieto, mas mostra resumo)
+testpaths = [
+    "tests",
+]
+pythonpath = "src"
