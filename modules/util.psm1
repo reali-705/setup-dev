@@ -62,14 +62,18 @@ function Write-Log {
 #>
 function Set-TerminalSyntaxTheme {
     Set-PSReadLineOption -Colors @{
-        Command            = [ConsoleColor]::DarkYellow
-        Parameter          = [ConsoleColor]::Cyan
-        String             = [ConsoleColor]::Green
-        Number             = [ConsoleColor]::Blue
-        Operator           = [ConsoleColor]::DarkMagenta
-        Variable           = [ConsoleColor]::Blue
-        Type               = [ConsoleColor]::White
-        Comment            = [ConsoleColor]::DarkGreen
+        Command     =   [ConsoleColor]::DarkYellow
+        Parameter   =   [ConsoleColor]::Red
+        String      =   [ConsoleColor]::DarkGreen
+        Number      =   [ConsoleColor]::Blue
+        Operator    =   [ConsoleColor]::Magenta
+        Variable    =   [ConsoleColor]::Green
+        Type        =   [ConsoleColor]::Cyan
+        Comment     =   [ConsoleColor]::DarkGray
+        Keyword     =   [ConsoleColor]::Red
+        Member      =   [ConsoleColor]::Cyan
+        Error       =   [ConsoleColor]::Red
+        Default     =   [ConsoleColor]::DarkCyan
     }
 }
 

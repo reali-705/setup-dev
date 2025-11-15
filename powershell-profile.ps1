@@ -38,7 +38,7 @@ try {
 
 Write-Host ""
 Write-Host "===========================================================================" -ForegroundColor Magenta
-Write-Host "                   Perfil PowerShell (v2.1 Modular)" -ForegroundColor Cyan
+Write-Host "                   Perfil PowerShell (v2.1 Modular)" -ForegroundColor DarkMagenta
 Write-Host "===========================================================================" -ForegroundColor Magenta
 Write-Host ""
 Write-Host "FUNÇÕES DE DESENVOLVIMENTO:" -ForegroundColor Cyan
