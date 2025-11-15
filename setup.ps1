@@ -1,96 +1,66 @@
+﻿# ============================================================
+# FUNÇÕES AUXILIARES
 # ============================================================
-# SETUP DE DESENVOLVIMENTO v2.0
-# Um script único para provisionar uma máquina de dev.
-# Requer execução como Administrador.
-# ============================================================
-
-# ============================================================
-# FUNÇÃO AUXILIAR: LOG DO TERMINAL
-# ============================================================
-function Write-Log {
+function log {
+    [CmdletBinding()]
     param(
+        [Parameter(Mandatory=$true, Position=0)]
         [string]$Message,
-        [ValidateSet("Info", "Warning", "Error", "Success")]
-        [string]$Level = "Info"
+        [Parameter(Mandatory=$false, Position=1)]
+        [ValidateSet("info", "warning", "error", "success")]
+        [string]$Level = "info"
     )
     
     $Colors = @{
-        "Info" = "White"
-        "Warning" = "Yellow"  
-        "Error" = "Red"
-        "Success" = "Green"
+        "info" = "White"
+        "warning" = "Yellow"  
+        "error" = "Red"
+        "success" = "Green"
     }
     
     $Timestamp = Get-Date -Format "HH:mm:ss"
-    Write-Host "[$Timestamp] [$Level] $Message" -ForegroundColor $Colors[$Level]
+    Write-Host "[$Timestamp] [$($Level.ToUpper())] $Message" -ForegroundColor $Colors[$Level]
 }
 
-# ============================================================
-# FUNÇÃO AUXILIAR: RECARREGAR PATH
-# ============================================================
-function Reload-Environment {
-    Write-Log "Recarregando variáveis de ambiente (Path) nesta sessão..." "Info"
-    
-    # Lê os Paths "frescos" (de Usuário e Máquina) diretamente do Registro
-    $newUserPath = [Environment]::GetEnvironmentVariable("Path", "User")
-    $newMachinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
-    
-    # Sobrescreve o Path da sessão atual
-    $env:Path = $newUserPath + ";" + $newMachinePath
-    Write-Log "Variáveis recarregadas." "Success"
-}
-
-# ============================================================
-# PASSO 0: VERIFICAR SE É ADMIN
-# ============================================================
 function Test-Admin {
     $currentUser = [Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()
     if (-not $currentUser.IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
-        Write-Log "Erro: Este script precisa ser executado como Administrador." "Error"
-        Write-Host "Por favor, clique com o botão direito no PowerShell e 'Executar como Administrador'."
+        log "Este script precisa ser executado como Administrador." error
+        log "Por favor, clique com o botão direito no PowerShell e 'Executar como Administrador'." error
         # Espera o usuário pressionar Enter para fechar
         Read-Host "Pressione Enter para sair..."
         exit 1
     }
-    Write-Log "Executando como Administrador." "Success"
+    log "Executando como Administrador." "Success"
 }
 
-# ============================================================
-# PASSO 1: DETECTAR/INSTALAR CHOCOLATEY
-# ============================================================
 function Ensure-Chocolatey {
-    # Verifica se o choco existe no Path (após a limpeza, não deve existir)
+    # Verifica se o choco existe no Path
     if (Get-Command choco -ErrorAction SilentlyContinue) {
-        Write-Log "Chocolatey já está instalado." "Success"
-        return $true
+        log "Chocolatey já está instalado." success
+        return
     }
 
-    Write-Log "Chocolatey não encontrado. Instalando..." "Info"
+    log "Chocolatey não encontrado. Instalando..." warning
     try {
-        # Define a política de execução e protocolos de segurança para a instalação
-        Set-ExecutionPolicy Bypass -Scope Process -Force
-        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-        
-        # Comando de instalação oficial do Choco
-        $installScript = ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-        Invoke-Expression $installScript
-        
-        Write-Log "Chocolatey instalado com sucesso." "Success"
-        
-        # IMPORTANTE: Recarrega o ambiente AGORA para que o choco possa ser usado no PASSO 2
-        Reload-Environment
-        return $true
+        winget install -e --id=Chocolatey.Chocolatey -s winget -hiden -accept-source-agreements -accept-package-agreements
+        # Recarrega o Path para garantir que o choco esteja disponível
+        log "Recarregando Path da sessão para encontrar o Chocolatey..."
+        $newUserPath = [Environment]::GetEnvironmentVariable("Path", "User")
+        $newMachinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+        $env:Path = $newUserPath + ";" + $newMachinePath
+
+        log "Chocolatey instalado com sucesso." success
     } catch {
-        Write-Log "Falha crítica ao instalar Chocolatey: $_" "Error"
-        return $false
+        log "Falha crítica ao instalar Chocolatey: $_" error
+        log "A instalação não pode continuar sem o Chocolatey." error
+        Read-Host "Pressione Enter para sair..."
+        exit 1
     }
 }
 
-# ============================================================
-# PASSO 2: INSTALAR SOFTWARES DA LISTA
-# ============================================================
 function Install-Software {
-    Write-Log "Iniciando instalação dos softwares..." "Info"
+    log "Iniciando instalação dos softwares..."
 
     # Adicione ou remova pacotes Choco aqui.
     $softwareList = @(
@@ -100,81 +70,72 @@ function Install-Software {
         "swi-prolog",
         "nodejs",
         "postgresql16",
-        "sqlitebrowser"
+        "sqlitebrowser",
+        "git",
+        "jetbrainstoolbox",
+        "docker-desktop",
+        "postman"
     )
 
     foreach ($pkg in $softwareList) {
-        Write-Log "Instalando/Atualizando $pkg..." "Info"
+        log "Instalando/Atualizando $pkg..."
         try {
             # Usamos 'upgrade' pois é seguro: instala se não existir, atualiza se já existir.
             choco upgrade $pkg -y -r
         } catch {
-            Write-Log "Falha ao instalar $pkg." "Error"
+            log "Falha ao instalar $pkg." error
         }
     }
-    Write-Log "Instalação de softwares concluída." "Success"
+    log "Instalação de softwares concluída." success
+
+    log "Recarregando variáveis de ambiente (Path) nesta sessão..."
+    refreshenv
 }
 
-# ============================================================
-# PASSO 3: CONFIGURAR O PROFILE PERSONALIZADO
-# ============================================================
 function Setup-CustomProfile {
-    Write-Log "Configurando o profile personalizado..." "Info"
+    log "Configurando o profile personalizado..."
     
     # -----------------------------------------------------------------
-    # Deve apontar para onde o seu repositório `setup-dev` foi/será clonado.
+    # Definir variáveis 
     $meuProfile = (Resolve-Path -Path "$PSScriptRoot\powershell-profile.ps1").Path
-    # -----------------------------------------------------------------
-    
-    # $PROFILE é a variável do PowerShell que aponta para o profile do usuário atual
     $profileOficial = $PROFILE
-    
+    $linhaParaAdicionar = ". '$meuProfile'"
+    # -----------------------------------------------------------------
+        
     # Cria o arquivo de profile se ele não existir
     if (-not (Test-Path $profileOficial)) {
         New-Item -Path $profileOficial -ItemType File -Force | Out-Null
-        Write-Log "Arquivo de profile oficial criado em $profileOficial" "Info"
+        log "Arquivo de profile oficial criado em $profileOficial"
     }
-    
-    # A linha que queremos adicionar (o ". " no início executa o script)
-    $linhaParaAdicionar = ". '$meuProfile'"
-    
+        
     # Adiciona a linha, mas só se ela já não existir
-    if (-not (Get-Content $profileOficial | Select-String -Pattern $linhaParaAdicionar -Quiet)) {
+    if (-not (Get-Content $profileOficial | Select-String -Pattern $linhaParaAdicionar -SimpleMatch -Quiet)) {
         Add-Content -Path $profileOficial -Value $linhaParaAdicionar
-        Write-Log "Profile personalizado adicionado ao $profileOficial" "Success"
+        log "Profile personalizado adicionado ao $profileOficial" success
     } else {
-        Write-Log "Profile personalizado já estava configurado." "Info"
+        log "Profile personalizado já estava configurado."
     }
 }
 
 # ============================================================
-# EXECUÇÃO PRINCIPAL (JUNTANDO TUDO)
+# EXECUÇÃO PRINCIPAL
 # ============================================================
 
 # 1. Garante que estamos como Admin
 Test-Admin
 
 # 2. Garante que o Choco está pronto
-if (Ensure-Chocolatey) {
-    
-    # 3. Instala todo o software
-    Install-Software
-    
-    # 4. Recarrega o Path DE NOVO (para garantir que o profile encontre tudo)
-    Reload-Environment
-    
-    # 5. Configura o profile para a próxima inicialização
-    Setup-CustomProfile
-    
-    # 6. Carrega o profile nesta sessão
-    Write-Log "Carregando o novo profile na sessão atual..." "Warning"
-    . $PROFILE
-    
-    Write-Host ""
-    Write-Log "SETUP CONCLUÍDO!" "Success"
-    Write-Log "Seu novo profile foi carregado nesta sessão de Admin." "Info"
-    Write-Log "Lembre-se de fechar e reabrir seus terminais NORMAIS." "Warning"
-} else {
-    Write-Log "A instalação não pode continuar sem o Chocolatey." "Error"
-    Read-Host "Pressione Enter para sair..."
-}
+Ensure-Chocolatey
+
+# 3. Instala todo o software
+Install-Software
+
+# 4. Configura o profile para a próxima inicialização
+Setup-CustomProfile
+
+# 5. Carrega o profile nesta sessão
+log "Carregando o novo profile na sessão atual..." warning
+. $PROFILE
+
+log "SETUP CONCLUÍDO!" success
+log "Lembre-se de fechar e reabrir seus terminais." warning
